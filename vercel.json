@@ -1,0 +1,5 @@
+{
+  "installCommand": "cd life-recepts && npm install",
+  "buildCommand": "cd life-recepts && npm run build",
+  "outputDirectory": "life-recepts/dist"
+}
