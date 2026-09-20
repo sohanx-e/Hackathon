@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -14,15 +14,27 @@ import Header from "./components/Header";
 import Hero from "./components/Hero";
 import StatCard from "./components/StatCard";
 import FiltersBar from "./components/FiltersBar";
-import SpendingByCategory from "./components/SpendingByCategory";
-import IncomeExpenseChart from "./components/IncomeExpenseChart";
-import SpendingTimeline from "./components/SpendingTimeline";
 import TopTransactions from "./components/TopTransactions";
 import Insights from "./components/Insights";
-import SpotifyAnalytics from "./components/SpotifyAnalytics";
+import TimelineFeed from "./components/TimelineFeed";
 import DataExplorer from "./components/DataExplorer";
 import { LoadingState, ErrorState } from "./components/LoadingState";
 import { SectionLabel } from "./components/ui/Card";
+
+// Recharts alone is ~200kB gzipped — every chart panel is loaded on demand so
+// the first paint doesn't wait on code the user may not scroll to.
+const SpendingByCategory = lazy(() => import("./components/SpendingByCategory"));
+const IncomeExpenseChart = lazy(() => import("./components/IncomeExpenseChart"));
+const SpendingTimeline = lazy(() => import("./components/SpendingTimeline"));
+const SpotifyAnalytics = lazy(() => import("./components/SpotifyAnalytics"));
+
+function ChartFallback() {
+  return (
+    <div className="flex min-h-[280px] flex-1 animate-pulse items-center justify-center rounded-2xl border border-[var(--hairline)] bg-[var(--surface)]">
+      <span className="text-xs text-[var(--ink-muted)]">Loading chart…</span>
+    </div>
+  );
+}
 
 import { useCSVData } from "./hooks/useCSVData";
 import type { DatasetId, Filters } from "./types";
@@ -211,15 +223,26 @@ function App() {
           <section className="mt-10">
             <SectionLabel>Where the money goes</SectionLabel>
             <div className="grid gap-4 lg:grid-cols-2">
-              <SpendingByCategory categories={categoryTotals} categoryColors={categoryColors} delay={0} />
-              <IncomeExpenseChart txns={filteredTxns} hasIncome={dataset.hasIncome} delay={60} />
+              <Suspense fallback={<ChartFallback />}>
+                <SpendingByCategory categories={categoryTotals} categoryColors={categoryColors} delay={0} />
+              </Suspense>
+              <Suspense fallback={<ChartFallback />}>
+                <IncomeExpenseChart txns={filteredTxns} hasIncome={dataset.hasIncome} delay={60} />
+              </Suspense>
             </div>
+          </section>
+
+          <section className="mt-10">
+            <SectionLabel>Your life, one moment at a time</SectionLabel>
+            <TimelineFeed txns={filteredTxns} spotify={spotify} delay={0} />
           </section>
 
           <section className="mt-10">
             <SectionLabel>How it changes over time</SectionLabel>
             <div className="grid gap-4 lg:grid-cols-2">
-              <SpendingTimeline txns={filteredTxns} delay={0} />
+              <Suspense fallback={<ChartFallback />}>
+                <SpendingTimeline txns={filteredTxns} delay={0} />
+              </Suspense>
               <TopTransactions
                 txns={filteredTxns}
                 hasFlags={dataset.hasFlags}
@@ -233,7 +256,9 @@ function App() {
             <SectionLabel>What the data says</SectionLabel>
             <div className="grid gap-4">
               <Insights insights={insights} delay={0} />
-              <SpotifyAnalytics data={spotify} delay={60} />
+              <Suspense fallback={<ChartFallback />}>
+                <SpotifyAnalytics data={spotify} delay={60} />
+              </Suspense>
             </div>
           </section>
 
